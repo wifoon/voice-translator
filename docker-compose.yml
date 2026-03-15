@@ -1,0 +1,11 @@
+services:
+  translator:
+    build: .
+    container_name: voice_translator_app
+    devices:
+      - "/dev/snd:/dev/snd"
+    group_add:
+      - audio
+    stdin_open: true
+    tty: true
+    restart: on-failure

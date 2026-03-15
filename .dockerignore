@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+venv/
+.git
+.vscode
+output.mp3
+.env
