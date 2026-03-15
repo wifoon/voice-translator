@@ -4,31 +4,36 @@ import sys
 import asyncio
 import edge_tts
 import os
-os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "1"
 import pygame
 
-async def tts(text, lang):
-    if "pl-PL" in lang:
-        voice = "en-US-GuyNeural"
-    else:
+os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "1"
+
+async def tts(text, target_lang):
+    if target_lang == "pl":
         voice = "pl-PL-MarekNeural"
+    else:
+        voice = "en-US-GuyNeural"
 
     output_file = "output.mp3"
 
-    communicate = edge_tts.Communicate(text, voice)
-    await communicate.save(output_file)
+    try:
+        communicate = edge_tts.Communicate(text, voice)
+        await communicate.save(output_file)
 
-    pygame.mixer.init()
-    pygame.mixer.music.load(output_file)
-    pygame.mixer.music.play()
+        pygame.mixer.init()
+        pygame.mixer.music.load(output_file)
+        pygame.mixer.music.play()
 
-    while pygame.mixer.music.get_busy():
-        await asyncio.sleep(0.1)
-    
-    pygame.mixer.quit()
+        while pygame.mixer.music.get_busy():
+            await asyncio.sleep(0.1)
+        
+        pygame.mixer.music.unload()
+        pygame.mixer.quit()
 
-    if os.path.exists(output_file):
-        os.remove(output_file)
+        if os.path.exists(output_file):
+            os.remove(output_file)
+    except Exception as e:
+        print(f"Błąd TTS {e}")
 
 
 def recognise(lang="pl-PL"):
@@ -57,7 +62,7 @@ def translate_text(text, from_="pl", to_="en"):
         return f"Błąd tłumaczenia: {str(e)}"
 
 
-def choose_language():
+async def main():
     while True:
         print("\nWybierz język z którego chcesz przetłumaczyć:\nPowiedz 'polski' lub 'angielski'")
         print("Aby zakończyć, powiedz 'wyjdź', 'stop' lub 'koniec'")
@@ -65,37 +70,29 @@ def choose_language():
         choose = recognise()
 
         if not choose:
-            print("Nie wykryto mowy, spróbuj jeszcze raz...")
             continue
 
         if "wyjdź" in choose.lower() or "stop" in choose.lower() or "koniec" in choose.lower():
-            sys.exit()
+            print("Zamykanie...")
+            break
         elif "polski" in choose.lower():
             print("Wybrano język polski")
-            return "pl-PL"
+            src, dest, lang_code = "pl", "en", "pl-PL"
         elif "angielski" in choose.lower():
             print("Wybrano język angielski")
-            return "en-US"
+            src, dest, lang_code = "en", "pl", "en-US"
         else:
-            print("Nie rozpoznano języka, spróbuj ponownie...")
+            print("Nie rozpoznano wyboru.")
+            continue
 
+        text = recognise(lang_code)
 
-async def main():
-    while True:
-        lang = choose_language()
-
-        text = recognise(lang)
-
-        if lang == "pl-PL":
+        if text:
             print(f"Rozpoznany tekst: {text}")
-            translated_text = translate_text(text, "pl", "en")
+            translated_text = translate_text(text, src, dest)
             print(f"Translated: {translated_text}")
-            await tts(translated_text, lang)
-        else:
-            print(f"Recognized text: {text}")
-            translated_text = translate_text(text, "en", "pl")
-            print(f"Translated: {translated_text}")
-            await tts(translated_text, lang)
+            await tts(translated_text, dest)
+    
 
 if __name__ == "__main__":
     asyncio.run(main())
